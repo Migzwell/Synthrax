@@ -1,11 +1,4 @@
 """Loads data/seed_data.json into a site's event log at start-up."""
-# Only `starting_events` are loaded. `demo_script_events` happen live during the demo, and
-# `messy_carer_notes_for_ai` are test cases for the AI, so neither is added here.
-#
-# Seed names -> our names (see core/types.py):
-#   medication_id -> rx_id        t_hours -> created_at in demo minutes (t_hours * 60 + 240)
-#   "INR_taken"   -> "INR_TAKEN"  quantity -> qty      "safety_hold" -> "safety hold"
-#   scheduled_time / given_at ("HH:MM") -> minutes on the day given by t_hours
 import json
 from pathlib import Path
 from typing import Any

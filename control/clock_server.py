@@ -1,7 +1,6 @@
 """Shared demo clock; never partitioned."""
 # A demo control, not data: the network switch never blocks it, so an offline site
 # still moves to 18:00 with everyone else.
-#
 # Time is in demo-clock minutes: 0 = 14:00 on demo day (see core/types.py).
 # The Synthrax demo story starts at 12:00, when the care home's wifi drops.
 #

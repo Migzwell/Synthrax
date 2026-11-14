@@ -25,9 +25,6 @@ def demo_on(monkeypatch):
 def fake_llm(monkeypatch, module, reply):
     monkeypatch.setattr(module.llm, 'complete_json', lambda *a, **k: reply)
 
-
-# --- llm.py -----------------------------------------------------------------
-
 def test_demo_mode_returns_the_cached_answer_ignoring_case_and_spacing(demo_on):
     answer = llm.complete_json('sys', 'user', fixture_text='  ' + NOTE.upper() + '\n')
     assert len(answer['items']) == 2

@@ -63,7 +63,6 @@ def find_conflicts(events: list[Event]) -> list[ConflictCard]:
         rx = e.rx_id
         drug = history.drug.get(rx, rx or "medicine")
 
-        # 1. A dose held for safety (e.g. R1 while the care home was cut off from the GP)
         if e.type == "DOSE_WITHHELD" and e.payload.get("reason") == "safety hold":
             latest_v, latest_dose = history.latest(rx)
             when = e.payload.get("slot") if e.payload.get("slot") is not None else e.created_at

@@ -58,9 +58,6 @@ class PackCode:
         path.write_bytes(self.png)
         return path
 
-
-# ---------- text <-> dict ----------
-
 def encode_text(resident_id: str, drug: str, dose: str, rx_version: int) -> str:
     """Build the text stored in the QR. Validates the inputs."""
     if not str(resident_id).strip():
@@ -99,9 +96,6 @@ def parse_code_text(text: str) -> dict:
             raise PackCodeError(f"pack code has an invalid {key}")
     return {key: data[key] for key in FIELDS}
 
-
-# ---------- make ----------
-
 def make_code(resident_id: str, drug: str, dose: str, rx_version: int,
               scale: int = 8) -> PackCode:
     """Make the QR label for one pack."""
@@ -110,9 +104,6 @@ def make_code(resident_id: str, drug: str, dose: str, rx_version: int,
     buf = io.BytesIO()
     qr.save(buf, kind="png", scale=scale, border=4)
     return PackCode(text=text, png=buf.getvalue())
-
-
-# ---------- read ----------
 
 def _load_opencv():
     """Import OpenCV and numpy only when reading an image."""

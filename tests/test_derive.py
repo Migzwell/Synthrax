@@ -109,9 +109,6 @@ def test_rejected_request_is_closed():
     no = ev("no", "REQUEST_REJECTED", 10, rx="M4", resident="R2", request="req")
     assert state(req, no).open_requests == {}
 
-
-# ---------- the demo moment, with the team's rules ----------
-
 def test_6pm_round_offline_holds_warfarin():
     offline = SyncState(online=False, last_seen={"gp": -120})          # cut off at 12:00
     flags = evaluate(state(), 240, offline)

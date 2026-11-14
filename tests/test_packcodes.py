@@ -22,9 +22,6 @@ needs_opencv = pytest.mark.skipif(
     not HAS_OPENCV, reason="opencv-python-headless not installed for this Python"
 )
 
-
-# ---------- no OpenCV needed ----------
-
 def test_make_code_gives_a_png():
     code = make_code(**MARGARET_V2)
     assert code.png.startswith(b"\x89PNG")
@@ -82,9 +79,6 @@ def test_bad_text_raises(bad):
 def test_make_code_rejects_bad_inputs(kwargs):
     with pytest.raises(PackCodeError):
         make_code(**kwargs)
-
-
-# ---------- need OpenCV (reading images) ----------
 
 @needs_opencv
 def test_round_trip_png_bytes():

@@ -11,9 +11,6 @@ ROUNDS = ("08:00", "12:00", "18:00", "22:00")          # med rounds
 
 _minute = int(os.getenv("DEMO_START_MINUTE", "-120"))  # last known time, used if the clock is unreachable
 
-
-# ---------- pure helpers (no network; easy to test) ----------
-
 def minute_of(hhmm: str, day: int = 0) -> int:
     """'18:00' on demo day -> 240. day=-1 is yesterday, day=1 is tomorrow. Needs two-digit 'HH:MM'."""
     h, m = map(int, hhmm.split(":"))
@@ -38,9 +35,6 @@ def next_round(now: int) -> int:
 def from_test_hours(t_hours: float) -> int:
     """Ethan's test cases count hours from 18:00. -32 (INR yesterday 10:00) -> -1680."""
     return round(t_hours * 60) + minute_of("18:00")
-
-
-# ---------- talking to the clock server ----------
 
 def now() -> int:
     return _minute

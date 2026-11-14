@@ -1,7 +1,7 @@
 """Reads .env."""
 import os
 
-try:                                   # python-dotenv is optional: plain environment variables also work
+try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:

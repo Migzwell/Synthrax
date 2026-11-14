@@ -9,18 +9,12 @@ from tests.factories import (COCARELDOPA, FUROSEMIDE, LAST_SYNC, SIX_PM, WARFARI
 def by_rx(flags, rx_id):
     return [f for f in flags if f.rx_id == rx_id]
 
-
-# --- schedule ---------------------------------------------------------------
-
 def test_demo_clock_conversion():
     assert SIX_PM == 240                      # matches core/types.py: minute = t_hours * 60 + 240
     assert (at(14), at(8), at(8, day=1)) == (0, -360, 1080)
     assert (hhmm(240), hhmm(-360), hhmm(0)) == ('18:00', '08:00', '14:00')
     assert next_round(at(16)) == SIX_PM
     assert next_round(at(23)) == at(8, day=1)
-
-
-# --- R1: outstanding instruction --------------------------------------------
 
 def test_r1_holds_margarets_warfarin_when_offline():
     (flag,) = by_rx(r1.check(demo_state(), SIX_PM, offline()), WARFARIN)
@@ -86,9 +80,6 @@ def test_r1_ignores_standard_and_stopped_medicines():
     flags = r1.check(state, at(8, day=1), offline())
     assert by_rx(flags, FUROSEMIDE) == [] and by_rx(flags, WARFARIN) == []
 
-
-# --- R2: stale high-risk record ---------------------------------------------
-
 def test_r2_silent_within_24h():
     assert r2.check(demo_state(), SIX_PM, offline()) == []
 
@@ -107,8 +98,6 @@ def test_r2_never_synced_counts_as_stale():
     flags = r2.check(demo_state(), SIX_PM, SyncState(online=True, last_seen={}))
     assert len(flags) == 2
 
-
-# --- R3: pack/record mismatch -----------------------------------------------
 
 def scan(rx_id, version, pack_resident):
     return ev('OBSERVATION', rx_id, SIX_PM, kind='PACK_SCANNED',
@@ -143,9 +132,6 @@ def test_r3_wrong_residents_pack():
 def test_r3_matching_pack_is_silent():
     assert r3.check(demo_state([scan(WARFARIN, 1, 'margaret')]), SIX_PM, offline()) == []
 
-
-# --- R4: late time-critical dose --------------------------------------------
-
 def test_r4_silent_at_30_minutes():
     assert r4.check(demo_state(), SIX_PM + 30, online(SIX_PM + 30)) == []
 
@@ -160,8 +146,6 @@ def test_r4_silent_once_given_and_never_for_warfarin():
     given = ev('DOSE_GIVEN', COCARELDOPA, SIX_PM + 10, slot=SIX_PM, given_at=SIX_PM + 10)
     assert r4.check(demo_state([given]), SIX_PM + 45, online(SIX_PM + 45)) == []
 
-
-# --- R5: low stock -> repeat request ----------------------------------------
 
 def test_r5_flags_under_7_days_and_drafts_a_28_day_repeat():
     state = demo_state()
@@ -191,9 +175,6 @@ def test_r5_skips_prn_medicines():
     state.rx[FUROSEMIDE].times = []
     state.rx[FUROSEMIDE].stock = 0
     assert r5.check(state, SIX_PM, offline()) == []
-
-
-# --- evaluate() -------------------------------------------------------------
 
 def test_evaluate_demo_moment_most_severe_first():
     flags = evaluate(demo_state(), SIX_PM, offline())
