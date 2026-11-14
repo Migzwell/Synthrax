@@ -1,0 +1,7 @@
+nicegui
+pydantic
+httpx
+python-dotenv
+pytest
+segno
+opencv-python

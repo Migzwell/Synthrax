@@ -1,0 +1,1 @@
+"""Control plane (never partitioned)."""

@@ -1,0 +1,1 @@
+"""GP inbox summary."""
