@@ -5,3 +5,5 @@ python-dotenv
 pytest
 segno
 opencv-python
+fastapi
+uvicorn
