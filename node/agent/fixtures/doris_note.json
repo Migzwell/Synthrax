@@ -1,1 +1,21 @@
-{}
+{
+  "summary": "Refused furosemide this morning; only 3 tablets left.",
+  "items": [
+    {
+      "kind": "refusal",
+      "rx_id": "rx-doris-furosemide",
+      "drug": "Furosemide",
+      "detail": "Refused her furosemide this morning.",
+      "count": null,
+      "source_text": "Doris refusing her water tablet this morning"
+    },
+    {
+      "kind": "stock_count",
+      "rx_id": "rx-doris-furosemide",
+      "drug": "Furosemide",
+      "detail": "Only 3 furosemide tablets left in the pack.",
+      "count": 3,
+      "source_text": "only 3 left in the pack"
+    }
+  ]
+}
