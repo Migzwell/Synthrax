@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional
 
 from fastapi import APIRouter, Body, HTTPException
 
+from core.conflicts import find_conflicts
 from core.types import Event, SyncState
 from .actions import ALLOWED, Actions
 from .store import EventStore
@@ -41,6 +42,12 @@ def make_router(node_id: str, store: EventStore, state: Optional[SyncState] = No
         """The network switch: /api/online/false cuts this site off, /api/online/true reconnects it."""
         state.online = value
         return {"node": node_id, "online": state.online}
+
+    @router.get("/api/conflicts")
+    def conflicts():
+        """Open conflict cards for the GP to review after a reconnect, most urgent first.
+        Reviewing one (POST /api/actions/review_conflict with group = the card's id) closes it."""
+        return [card.model_dump() for card in find_conflicts(store.all())]
 
     @router.get("/api/reference")
     def reference():
