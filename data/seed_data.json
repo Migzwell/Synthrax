@@ -1,0 +1,205 @@
+{
+  "_readme": "Synthrax seed data v3.1, written by Ethan (pharmacy lead). All people and places are fictional. Times are 24h local. 'demo_now' is the moment the 6pm round starts in the demo; all event times are given as hours relative to it (negative = in the past). 'scheduled_time' and 'given_at' are HH:MM on the same day as the event's t_hours (e.g. an event at t_hours -24 with given_at '18:00' means 18:00 yesterday). Drug-name matching must ignore case ('Warfarin' = 'warfarin') and should also check each medication's 'aliases'. The 'high_risk' and 'time_critical' flags on each medication must be kept in step with the two drug lists.",
+
+  "_changes_v1_to_v2": [
+    "INR sample moved from -22h to -32h (10:00 yesterday) so it is clearly outside the 24h R1 window at the 6pm round; R1 message updated to match",
+    "M6 furosemide stock raised from 3 to 10 so R5 does not fire on load; the '3 left in the pack' carer note now triggers it",
+    "DOSE_GIVEN gained 'scheduled_time' and 'given_at' so R4 can measure lateness; Arthur's late-dose note now expects an R4 SAFETY_FLAG",
+    "Methotrexate once-weekly check moved out of interaction_checks_R6 into its own frequency_checks_R6 list",
+    "R7 threshold lowered from 4h to 2h so it no longer sits exactly on the boundary; a script step shows it firing on the GP side at -2h",
+    "RX_CREATED starting events now include 'drug' and 'times' and use the same dose wording as the medications list",
+    "Added 'aliases' to residents and medications (Mags, Sinemet, water tablet)",
+    "Expected REPEAT_REQUESTED now includes 'quantity'; the non-schema 'note' key was renamed '_comment'"
+  ],
+
+  "_changes_v2_to_v3": [
+    "Added Arthur's 08:00 and 16:00 co-careldopa doses to starting_events so R4 does not raise false 'missed dose' flags on load. His 12:00 dose is deliberately missing: R4 shows it as 'not recorded', then his carer note turns it into 'given 45 min late'",
+    "Added RX_CONFIRMED event (GP: 'INR in range, continue same dose'). Without it, R1 would fire after every INR even when the dose doesn't need changing",
+    "Added rule_notes: R1 is checked when the dose is due; R4 and R5 skip PRN medicines; R4 replaces a 'missing' flag with a 'given late' flag rather than showing both; boundary definitions",
+    "Margaret's 'bloods this morning' note marked as NOT for the live demo (it would reset R1's 24h clock)",
+    "Mags fall note: expected paracetamol dose now matches the medication list wording ('1g (2 tablets)')",
+    "Added sertraline + ibuprofen (stomach bleed risk) to interaction_checks_R6"
+  ],
+
+  "_changes_v3_to_v3_1": [
+    "Renamed from Isagemi to Synthrax",
+    "SAFETY_FLAG severity now includes 'block' and 'pharmacist review', which R6 uses",
+    "_readme now explains that scheduled_time and given_at are HH:MM on the day given by t_hours"
+  ],
+
+  "rule_notes": {
+    "R1": "Checked when a dose of the affected drug is due (i.e. at the round), not the moment the network drops. Fires only if ALL are true: an INR_taken observation is older than the window; no RX_CHANGED, RX_CONFIRMED or RX_STOPPED for that drug has been received since it; and the care home is currently offline from the GP. For the hackathon, implement R1 for INR_taken -> anticoagulants (warfarin) only. Holds only the affected drug, never the resident's other medicines.",
+    "R2": "Fires at a dose of a high-risk drug when the care home has had no sync with the GP for MORE than 24h. Severity warn: needs a second staff signature.",
+    "R3": "Compare the scanned pack_code with the local record. Pack version newer -> hold ('newer prescription exists'). Pack version older -> hold ('do not use this old pack'). Pack resident or medication different from the one being given -> hold ('wrong pack').",
+    "R4": "Time-critical drugs only (check aliases, e.g. Sinemet). Never applies to PRN. A dose is late if given MORE than 30 min after scheduled_time. If a scheduled dose has no DOSE_GIVEN or DOSE_WITHHELD by scheduled_time + 30 min, flag it as 'not recorded'. If a DOSE_GIVEN for that dose arrives later, replace the 'not recorded' flag with a single 'given late' flag.",
+    "R5": "Skip PRN medicines entirely (no fixed times, so days-left cannot be calculated). Days left = stock_doses / number of times per day. Fires if days left is LESS than 7 and there is no open REPEAT_REQUESTED for that medication. Draft quantity = 28 days' supply.",
+    "R6": "Run when an RX_CREATED or RX_CHANGED arrives at the pharmacy, before DISPENSED is allowed. Compare against all of that resident's current medicines. Case-insensitive, check aliases.",
+    "R7": "GP side. Fires when an RX_CHANGED has had no RX_ACKNOWLEDGED from the care home for 2h or more."
+  },
+
+  "demo_now": "18:00",
+
+  "nodes": [
+    { "id": "carehome", "name": "Oakwood Care Home", "role": "Gives medicines, records doses, orders repeats" },
+    { "id": "gp", "name": "Riverside Medical Practice", "role": "Prescribes and changes medicines, approves repeats" },
+    { "id": "pharmacy", "name": "Northgate Pharmacy", "role": "Checks and dispenses, prints pack labels" }
+  ],
+
+  "residents": [
+    { "id": "R1", "name": "Margaret Hughes", "aliases": ["Mags"], "age": 87, "room": "4", "allergies": ["penicillin"], "notes": "Star of the demo: warfarin dose change while care home is offline" },
+    { "id": "R2", "name": "Arthur Bell", "aliases": [], "age": 81, "room": "7", "allergies": [], "notes": "Parkinson's: time-critical doses; low stock triggers repeat request" },
+    { "id": "R3", "name": "Doris Patel", "aliases": [], "age": 92, "room": "2", "allergies": [], "notes": "Messy carer note gets parsed by the AI" }
+  ],
+
+  "medications": [
+    {
+      "id": "M1", "resident_id": "R1",
+      "drug": "Warfarin", "aliases": [], "strength": "1mg, 3mg, 5mg tablets", "dose": "5mg", "route": "oral",
+      "times": ["18:00"], "frequency": "once daily", "prn": false,
+      "high_risk": true, "time_critical": false,
+      "rx_version": 1, "stock_doses": 20, "indication": "Atrial fibrillation (stroke prevention)",
+      "monitoring": "INR target 2.0-3.0; dose adjusted by GP after each INR result"
+    },
+    {
+      "id": "M2", "resident_id": "R1",
+      "drug": "Amlodipine", "aliases": [], "strength": "5mg tablets", "dose": "5mg", "route": "oral",
+      "times": ["08:00"], "frequency": "once daily", "prn": false,
+      "high_risk": false, "time_critical": false,
+      "rx_version": 1, "stock_doses": 21, "indication": "High blood pressure"
+    },
+    {
+      "id": "M3", "resident_id": "R1",
+      "drug": "Paracetamol", "aliases": [], "strength": "500mg tablets", "dose": "1g (2 tablets)", "route": "oral",
+      "times": [], "frequency": "when required, max 4 doses in 24 hours, at least 4 hours apart", "prn": true,
+      "high_risk": false, "time_critical": false,
+      "rx_version": 1, "stock_doses": 30, "indication": "Pain"
+    },
+    {
+      "id": "M4", "resident_id": "R2",
+      "drug": "Co-careldopa", "aliases": ["Sinemet"], "strength": "25mg/100mg tablets", "dose": "1 tablet", "route": "oral",
+      "times": ["08:00", "12:00", "16:00", "20:00"], "frequency": "four times daily", "prn": false,
+      "high_risk": false, "time_critical": true,
+      "rx_version": 1, "stock_doses": 22, "indication": "Parkinson's disease",
+      "notes": "22 doses = 5.5 days left, which is under the 7-day threshold, so rule R5 should draft a repeat"
+    },
+    {
+      "id": "M5", "resident_id": "R2",
+      "drug": "Lansoprazole", "aliases": [], "strength": "30mg capsules", "dose": "30mg", "route": "oral",
+      "times": ["08:00"], "frequency": "once daily, before breakfast", "prn": false,
+      "high_risk": false, "time_critical": false,
+      "rx_version": 1, "stock_doses": 25, "indication": "Stomach protection"
+    },
+    {
+      "id": "M6", "resident_id": "R3",
+      "drug": "Furosemide", "aliases": ["water tablet"], "strength": "40mg tablets", "dose": "40mg", "route": "oral",
+      "times": ["08:00"], "frequency": "once daily (morning)", "prn": false,
+      "high_risk": false, "time_critical": false,
+      "rx_version": 1, "stock_doses": 10, "indication": "Heart failure / fluid retention (\"water tablet\")",
+      "notes": "Starts at 10 days, above the 7-day threshold, on purpose. The '3 left in the pack' carer note corrects the count to 3, and that is what should make rule R5 draft a repeat"
+    },
+    {
+      "id": "M7", "resident_id": "R3",
+      "drug": "Sertraline", "aliases": [], "strength": "50mg tablets", "dose": "50mg", "route": "oral",
+      "times": ["08:00"], "frequency": "once daily", "prn": false,
+      "high_risk": false, "time_critical": false,
+      "rx_version": 1, "stock_doses": 24, "indication": "Depression"
+    }
+  ],
+
+  "high_risk_drugs": ["warfarin", "apixaban", "rivaroxaban", "edoxaban", "insulin", "morphine", "oxycodone", "fentanyl", "methotrexate", "lithium"],
+
+  "time_critical_drugs": ["co-careldopa", "co-beneldopa", "insulin", "levetiracetam"],
+
+  "interaction_checks_R6": [
+    { "drugs": ["warfarin", "ibuprofen"], "risk": "Bleeding", "action": "block" },
+    { "drugs": ["warfarin", "naproxen"], "risk": "Bleeding", "action": "block" },
+    { "drugs": ["warfarin", "aspirin"], "risk": "Bleeding", "action": "pharmacist review" },
+    { "drugs": ["sertraline", "tramadol"], "risk": "Serotonin syndrome / seizures", "action": "pharmacist review" },
+    { "drugs": ["sertraline", "ibuprofen"], "risk": "Stomach bleeding (SSRI + NSAID)", "action": "pharmacist review" },
+    { "drugs": ["morphine", "oxycodone"], "risk": "Two opioids: breathing suppression", "action": "pharmacist review" }
+  ],
+
+  "frequency_checks_R6": [
+    { "drug": "methotrexate", "required_frequency": "once weekly", "risk": "Must be ONCE WEEKLY. Flag if frequency is anything daily", "action": "block" }
+  ],
+
+  "rule_settings": {
+    "R1_expected_instruction_windows_hours": { "INR_taken": 24, "hospital_discharge": 12, "gp_visit": 24 },
+    "R2_stale_sync_hours_high_risk": 24,
+    "R4_time_critical_late_minutes": 30,
+    "R5_low_stock_days": 7,
+    "R7_unacknowledged_change_hours": 2
+  },
+
+  "event_types": {
+    "RX_CREATED":       { "author": "gp",       "fields": ["medication_id", "drug", "dose", "times", "rx_version"] },
+    "RX_CHANGED":       { "author": "gp",       "fields": ["medication_id", "old_dose", "new_dose", "reason", "new_rx_version"] },
+    "RX_CONFIRMED":     { "author": "gp",       "fields": ["medication_id", "rx_version", "reason (e.g. 'INR 2.6, in range, continue 5mg')"] },
+    "RX_STOPPED":       { "author": "gp",       "fields": ["medication_id", "reason"] },
+    "RX_ACKNOWLEDGED":  { "author": "carehome", "fields": ["medication_id", "rx_version", "staff_name"] },
+    "DISPENSED":        { "author": "pharmacy", "fields": ["medication_id", "rx_version", "quantity", "pack_code"] },
+    "DOSE_GIVEN":       { "author": "carehome", "fields": ["medication_id", "dose", "rx_version_used", "scheduled_time (HH:MM on the event's day; blank for PRN)", "given_at (HH:MM on the event's day)", "staff_name"] },
+    "DOSE_WITHHELD":    { "author": "carehome", "fields": ["medication_id", "reason (refused | asleep | safety_hold | in_hospital)", "staff_name"] },
+    "OBSERVATION":      { "author": "carehome", "fields": ["kind (INR_taken | hospital_discharge | gp_visit | fall | stock_count | refusing)", "detail"] },
+    "REPEAT_REQUESTED": { "author": "carehome", "fields": ["medication_id", "quantity", "auto_drafted (true/false)"] },
+    "REQUEST_APPROVED": { "author": "gp",       "fields": ["request_event_id"] },
+    "REQUEST_REJECTED": { "author": "gp",       "fields": ["request_event_id", "reason"] },
+    "SAFETY_FLAG":      { "author": "any",      "fields": ["rule (R1-R7)", "medication_id", "severity (hold | warn | info | block | pharmacist review)", "message"] },
+    "CONFLICT_RESOLVED":{ "author": "any",      "fields": ["flag_event_id", "resolution", "staff_name"] },
+    "_every_event_also_has": ["id", "resident_id", "type", "author", "created_at", "lamport (logical clock)"]
+  },
+
+  "starting_events": [
+    { "t_hours": -720, "type": "RX_CREATED", "author": "gp", "resident_id": "R1", "medication_id": "M1", "drug": "Warfarin", "dose": "5mg", "times": ["18:00"], "rx_version": 1 },
+    { "t_hours": -720, "type": "RX_CREATED", "author": "gp", "resident_id": "R1", "medication_id": "M2", "drug": "Amlodipine", "dose": "5mg", "times": ["08:00"], "rx_version": 1 },
+    { "t_hours": -720, "type": "RX_CREATED", "author": "gp", "resident_id": "R1", "medication_id": "M3", "drug": "Paracetamol", "dose": "1g (2 tablets)", "times": [], "rx_version": 1 },
+    { "t_hours": -720, "type": "RX_CREATED", "author": "gp", "resident_id": "R2", "medication_id": "M4", "drug": "Co-careldopa", "dose": "1 tablet", "times": ["08:00", "12:00", "16:00", "20:00"], "rx_version": 1 },
+    { "t_hours": -720, "type": "RX_CREATED", "author": "gp", "resident_id": "R2", "medication_id": "M5", "drug": "Lansoprazole", "dose": "30mg", "times": ["08:00"], "rx_version": 1 },
+    { "t_hours": -720, "type": "RX_CREATED", "author": "gp", "resident_id": "R3", "medication_id": "M6", "drug": "Furosemide", "dose": "40mg", "times": ["08:00"], "rx_version": 1 },
+    { "t_hours": -720, "type": "RX_CREATED", "author": "gp", "resident_id": "R3", "medication_id": "M7", "drug": "Sertraline", "dose": "50mg", "times": ["08:00"], "rx_version": 1 },
+    { "t_hours": -32, "type": "OBSERVATION", "author": "carehome", "resident_id": "R1", "kind": "INR_taken", "detail": "District nurse took INR blood sample" },
+    { "t_hours": -24, "type": "DOSE_GIVEN", "author": "carehome", "resident_id": "R1", "medication_id": "M1", "dose": "5mg", "rx_version_used": 1, "scheduled_time": "18:00", "given_at": "18:00", "staff_name": "Jo (senior carer)" },
+    { "t_hours": -10, "type": "DOSE_GIVEN", "author": "carehome", "resident_id": "R2", "medication_id": "M4", "dose": "1 tablet", "rx_version_used": 1, "scheduled_time": "08:00", "given_at": "08:00", "staff_name": "Jo (senior carer)" },
+    { "t_hours": -2, "type": "DOSE_GIVEN", "author": "carehome", "resident_id": "R2", "medication_id": "M4", "dose": "1 tablet", "rx_version_used": 1, "scheduled_time": "16:00", "given_at": "16:05", "staff_name": "Jo (senior carer)" }
+  ],
+
+  "demo_script_events": [
+    { "step": "Cut network", "t_hours": -6, "action": "Care home goes OFFLINE (toggle red)" },
+    { "step": "GP changes dose", "t_hours": -4, "type": "RX_CHANGED", "author": "gp", "resident_id": "R1", "medication_id": "M1", "old_dose": "5mg", "new_dose": "3mg", "reason": "INR 4.2 (too high)", "new_rx_version": 2 },
+    { "step": "Pharmacy re-dispenses", "t_hours": -3, "type": "DISPENSED", "author": "pharmacy", "resident_id": "R1", "medication_id": "M1", "rx_version": 2, "quantity": 28, "pack_code": "R1|M1|warfarin|3mg|v2" },
+    { "step": "GP sees no acknowledgement", "t_hours": -2, "expected": "Rule R7 fires on the GP side: SAFETY_FLAG severity=warn, message='Warfarin dose change not acknowledged by the care home after 2h.'" },
+    { "step": "6pm round", "t_hours": 0, "expected": "Care home is offline and has no RX_CHANGED. Rule R1 fires: SAFETY_FLAG severity=hold, message='INR taken 32h ago, no dosing instruction received, offline from GP for 6h. Hold warfarin and confirm dose with surgery or NHS 111.'" },
+    { "step": "Scan new pack (stretch)", "t_hours": 0.1, "expected": "Rule R3: pack says v2, record says v1. SAFETY_FLAG hold: 'A newer prescription exists that you have not received.'" },
+    { "step": "Reconnect", "t_hours": 0.2, "expected": "Logs merge; M1 now 3mg v2; care home sees the change and acknowledges it (RX_ACKNOWLEDGED); GP sees the dose was correctly held; no harm" }
+  ],
+
+  "messy_carer_notes_for_ai": [
+    {
+      "note": "Doris refused water tablet again, says it makes her rush to the loo, 3 left in the pack",
+      "expected": [
+        { "type": "DOSE_WITHHELD", "resident_id": "R3", "medication_id": "M6", "reason": "refused" },
+        { "type": "OBSERVATION", "resident_id": "R3", "kind": "stock_count", "detail": "furosemide 3 left" },
+        { "type": "REPEAT_REQUESTED", "resident_id": "R3", "medication_id": "M6", "quantity": 28, "auto_drafted": true }
+      ]
+    },
+    {
+      "note": "margaret had her bloods done by DN this morning for the warfarin",
+      "_comment": "TESTING ONLY - do NOT enter during the live demo before the 6pm round. A new INR_taken resets R1's 24h clock and R1 will not fire.",
+      "expected": [ { "type": "OBSERVATION", "resident_id": "R1", "kind": "INR_taken" } ]
+    },
+    {
+      "note": "Arthur's 12 o clock sinemet given late about 1245 he was in the lounge",
+      "expected": [
+        { "type": "DOSE_GIVEN", "resident_id": "R2", "medication_id": "M4", "dose": "1 tablet", "scheduled_time": "12:00", "given_at": "12:45", "_comment": "Sinemet is a brand of co-careldopa" },
+        { "type": "SAFETY_FLAG", "resident_id": "R2", "rule": "R4", "medication_id": "M4", "severity": "warn", "message": "Time-critical Parkinson's dose given 45 min late (limit 30 min)." }
+      ]
+    },
+    {
+      "note": "Mags had a fall in the bathroom no injury, gave 2 paracetamol for her hip",
+      "expected": [
+        { "type": "OBSERVATION", "resident_id": "R1", "kind": "fall", "detail": "no injury" },
+        { "type": "DOSE_GIVEN", "resident_id": "R1", "medication_id": "M3", "dose": "1g (2 tablets)" }
+      ]
+    }
+  ]
+}
