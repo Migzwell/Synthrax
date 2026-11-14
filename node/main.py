@@ -1,31 +1,38 @@
 """Starts a node: screen, API, sync and clock loops."""
 import argparse
 import asyncio
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import uvicorn
-from fastapi import FastAPI
+ROOT = Path(__file__).resolve().parents[1]          # the Synthrax project folder
+if str(ROOT) not in sys.path:                       # lets PyCharm's Run button start this file directly
+    sys.path.insert(0, str(ROOT))
 
-from . import clock_client
-from .actions import Actions
-from .api import make_router
-from .config import SYNC_INTERVAL_SECONDS, peers_of, port_of
-from .seed_loader import load_seed, read_seed
-from .store import EventStore
-from .sync import Sync
+import uvicorn                                      # noqa: E402
+from fastapi import FastAPI                         # noqa: E402
+
+from node import clock_client                       # noqa: E402
+from node.actions import Actions                    # noqa: E402
+from node.api import make_router                    # noqa: E402
+from node.config import SYNC_INTERVAL_SECONDS, peers_of, port_of   # noqa: E402
+from node.seed_loader import load_seed, read_seed   # noqa: E402
+from node.store import EventStore                   # noqa: E402
+from node.sync import Sync                          # noqa: E402
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--node", required=True, choices=["carehome", "gp", "pharmacy"])
+parser.add_argument("--node", default="carehome", choices=["carehome", "gp", "pharmacy"],
+                    help="which site to run (default: carehome)")
 parser.add_argument("--port", type=int)
 args, _ = parser.parse_known_args()
 
 NODE_ID = args.node
-store = EventStore(Path("data") / f"{NODE_ID}.db")
+DATA = ROOT / "data"                                # works whatever folder you start from
+store = EventStore(DATA / f"{NODE_ID}.db")
 sync = Sync(NODE_ID, store, peers_of(NODE_ID), now=clock_client.now)
 actions = Actions(NODE_ID, store, now=clock_client.now)   # the screens call these
 
-SEED_PATH = Path("data") / "seed_data.json"
+SEED_PATH = DATA / "seed_data.json"
 seed = read_seed(SEED_PATH)
 print(f"{NODE_ID}: loaded {load_seed(SEED_PATH, store)} new seed events")   # 0 after a restart
 
