@@ -7,3 +7,5 @@ venv/
 .DS_Store
 data/*.db
 data/*.db-*
+.idea/
+.idea/

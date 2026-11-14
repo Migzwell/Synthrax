@@ -1,16 +1,4 @@
 """Event, Rx, Resident, Flag, NodeState, SyncState."""
-
-# Synthrax shared data model (matches the Synthrax Product Overview, 14 Nov).
-# Agreed at kickoff: changing it later breaks other people's code.
-#
-# Time is in demo-clock minutes: 0 = 14:00 on demo day, negative = earlier, 1440 = 14:00 next day.
-# Ethan's test cases use hours relative to 18:00, so convert at the edges:
-#     minute = round(t_hours * 60) + 240
-#
-# Field names stay as they are in the code (rx_id, version, seen_version). Ethan's names map like this:
-#     medication_id   -> rx_id
-#     new_rx_version  -> seen_version + 1   (seen_version = the version being replaced)
-#     stock_doses     -> Rx.stock
 from typing import Any, Literal, Optional
 from pydantic import BaseModel
 
@@ -36,11 +24,14 @@ EventType = Literal[
 ]
 
 ObservationKind = Literal[
-    "INR_TAKEN",          # Ethan's tests write "INR_taken": normalise with .upper() when loading
+    "INR_TAKEN",          # test cases write "INR_taken": normalise with .upper() when loading
     "NOTE",               # messy carer note turned into records by the AI (payload text, summary, items)
-    "PACK_SCANNED",       # payload version, pack_resident (for the wrong-pack check)
+    "PACK_SCANNED",       # payload pack_code, version, pack_resident, pack_medication (R3)
     "STOCK_COUNT",        # payload stock_doses: a counted stock level replaces the estimate (R5)
-    "GP_VISIT",           # not in the Synthrax demo; kept so existing code still runs
+    "FALL",               # payload detail, e.g. "no injury" (slide idea: fall on warfarin)
+    "REFUSING",           # payload detail
+    "HOSPITAL_DISCHARGE", # payload detail
+    "GP_VISIT",           # payload detail
     "LETTER_RECEIVED",    # not in the Synthrax demo
     "LETTER_READ",        # not in the Synthrax demo
 ]
@@ -63,7 +54,7 @@ class Resident(BaseModel):
 class Event(BaseModel):
     id: str                          # uuid4 string; same id = same event everywhere
     resident_id: str
-    rx_id: Optional[str] = None      # Ethan: medication_id
+    rx_id: Optional[str] = None      # test cases: medication_id
     type: EventType
     payload: dict[str, Any] = {}
     author: NodeId
@@ -82,7 +73,7 @@ class Rx(BaseModel):
     version: int = 1
     risk_group: RiskGroup = "standard"
     stopped: bool = False
-    stock: int = 0                   # Ethan: stock_doses
+    stock: int = 0                   # test cases: stock_doses
     acked_version: int = 1
     dispensed_version: int = 1
     last_changed_at: Optional[int] = None

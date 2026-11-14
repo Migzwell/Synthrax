@@ -1,14 +1,16 @@
 """Endpoints other sites and the screens call."""
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 
 from core.types import Event, SyncState
+from .actions import ALLOWED, Actions
 from .store import EventStore
 
 
 def make_router(node_id: str, store: EventStore, state: Optional[SyncState] = None,
-                now: Optional[Callable[[], int]] = None) -> APIRouter:
+                now: Optional[Callable[[], int]] = None, actions: Optional[Actions] = None,
+                seed: Optional[dict] = None) -> APIRouter:
     """`state` is the sync loop's SyncState, so the switch and the sync loop share one on/off flag.
     Without a state (as in the sync tests) the site is always online."""
     router = APIRouter()
@@ -39,5 +41,26 @@ def make_router(node_id: str, store: EventStore, state: Optional[SyncState] = No
         """The network switch: /api/online/false cuts this site off, /api/online/true reconnects it."""
         state.online = value
         return {"node": node_id, "online": state.online}
+
+    @router.get("/api/reference")
+    def reference():
+        """Residents and medications from seed_data.json, for the screens (names, aliases, risk flags)."""
+        if seed is None:
+            raise HTTPException(status_code=404, detail="No seed data loaded")
+        return {"nodes": seed["nodes"], "residents": seed["residents"], "medications": seed["medications"]}
+
+    @router.post("/api/actions/{action}")
+    def do_action(action: str, fields: dict[str, Any] = Body(default={})):
+        """Run an action by name, e.g. POST /api/actions/give_dose with
+        {"resident_id": "R1", "rx_id": "M1", "slot": 240}. Works online or offline."""
+        if actions is None or action not in ALLOWED:
+            raise HTTPException(status_code=404, detail=f"Unknown action: {action}")
+        try:
+            event = getattr(actions, action)(**fields)
+        except PermissionError as e:
+            raise HTTPException(status_code=403, detail=str(e))
+        except (ValueError, TypeError) as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        return {"stored": True, "event": event.model_dump()}
 
     return router
