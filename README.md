@@ -66,36 +66,6 @@ Run the tests: `pytest`
 Every safety rule is checked against the pharmacy lead's 37 written test cases (each must fire
 when it should and stay silent when it shouldn't): `pytest tests/test_rule_cases.py -v`
 
-## Troubleshooting
-
-**`zsh: permission denied: ./run_all.sh`**
-The script isn't marked as runnable. Use `bash run_all.sh --fresh`, or run
-`chmod +x run_all.sh` once.
-
-**`ImportError: cannot import name 'field_validator' from 'pydantic'`**
-You're outside the project environment (Anaconda's base has an old pydantic).
-Run `source .venv/bin/activate` and try again. Your prompt shows `(.venv)` when
-it's active. You need to do this in every new terminal.
-
-**`ModuleNotFoundError: No module named 'nicegui'` (or `segno`, `httpx`)**
-Same cause as above, or the packages aren't installed yet:
-`source .venv/bin/activate` then `pip install -r requirements.txt`.
-
-**`address already in use` when starting**
-An earlier run is still going. Press Ctrl+C in its terminal, or stop it with
-`lsof -ti :8000,:8001,:8002,:8003 | xargs kill`.
-
-**The time on screen doesn't move**
-The sites can't reach the clock. Check `CLOCK_URL` in `.env` is
-`http://localhost:8000`.
-
-**"The AI couldn't read this note"**
-With `DEMO_MODE=1` only the prepared demo note has a cached answer. For any
-other note set `DEMO_MODE=0` and `LLM_API_KEY` in `.env`, and make sure the
-site is online.
-
-**The screens show old data**
-Restart with `bash run_all.sh --fresh`.
 
 ## The demo story (about 3 minutes)
 
