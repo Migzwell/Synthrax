@@ -9,7 +9,12 @@ CLOCK_URL = os.getenv("CLOCK_URL", "http://localhost:8000")
 DAY_START = 14 * 60                                    # minute 0 is 14:00
 ROUNDS = ("08:00", "12:00", "18:00", "22:00")          # med rounds
 
-_minute = int(os.getenv("DEMO_START_MINUTE", "-120"))  # last known time, used if the clock is unreachable
+_start = os.getenv("DEMO_START_MINUTE", "-120").split("#")[0].strip()
+if _start.lower() == "now":                            # start at the real time (see control/clock_server.py)
+    from datetime import datetime
+    _start = str(datetime.now().hour * 60 + datetime.now().minute - 14 * 60)
+_minute = int(_start)                                  # last known time, used if the clock is unreachable
+
 
 def minute_of(hhmm: str, day: int = 0) -> int:
     """'18:00' on demo day -> 240. day=-1 is yesterday, day=1 is tomorrow. Needs two-digit 'HH:MM'."""

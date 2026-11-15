@@ -1,6 +1,6 @@
 """Header, toggle, clock, badges, message log."""
 from dataclasses import dataclass, field
-from pathlib import Path
+from datetime import datetime
 from typing import Any
 
 from nicegui import ui
@@ -14,6 +14,8 @@ from node.actions import Actions
 from node.clock_client import fmt
 from node.store import EventStore
 from node.sync import Sync
+
+from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parents[2] / "assets"
 ICON = ASSETS / "synthrax_icon_animated.svg"            # the green pill: halves click together on load
@@ -100,7 +102,9 @@ def header(site: Site) -> None:
         with ui.row().classes("items-center gap-3"):
             @ui.refreshable
             def status():
-                ui.label(f"Demo time {fmt(site.now())}").classes("text-lg font-bold")
+                with ui.column().classes("gap-0 items-end"):
+                    ui.label(f"Demo time {fmt(site.now())}").classes("text-lg font-bold leading-tight")
+                    ui.label(f"Real time {datetime.now():%H:%M}").classes("text-xs text-gray-500")
                 if site.online():
                     ui.label("● Synced").classes("px-3 py-1 rounded bg-emerald-100 text-emerald-800 font-bold")
                 else:

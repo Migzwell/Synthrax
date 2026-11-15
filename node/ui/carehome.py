@@ -7,6 +7,7 @@ from core.schedule import due_slot
 from node.agent import llm
 from node.agent.parse_note import parse_note, to_draft_events
 from node.clock_client import fmt
+from node.qr_read import read_pack_codes
 from .common import Site, card, chip, worst
 
 
@@ -161,20 +162,29 @@ def pack_scan(site: Site) -> None:
             except ValueError as e:
                 ui.notify(str(e), type="warning")
 
+        choices = ui.column().classes("w-full")
+
         async def from_photo(e):
             data = await e.file.read()
-            try:
-                import cv2
-                import numpy as np
-                img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
-                found, _, _ = cv2.QRCodeDetector().detectAndDecode(img)
-            except Exception:
-                found = ""
-            if found:
-                scan(found)
-            else:
-                ui.notify("No pack code found in that photo. Type the code instead.", type="warning")
             upload.reset()
+            choices.clear()
+            try:
+                found = read_pack_codes(data)
+            except Exception:
+                found = []
+            if not found:
+                ui.notify("No pack code found. Photograph one label close up (the pharmacy's "
+                          "'Show large' helps), or type the code instead.", type="warning")
+            elif len(found) == 1:
+                code.value = found[0]
+                scan(found[0])
+            else:
+                with choices:
+                    ui.label(f"{len(found)} pack codes in that photo. Which pack are you holding?").classes(
+                        "text-sm font-bold")
+                    for text in found:
+                        ui.button(text, on_click=lambda t=text: (scan(t), choices.clear())).props(
+                            "dense outline no-caps").classes("font-mono text-xs")
 
         ui.button("Scan typed code", on_click=lambda: scan(code.value))
         upload = ui.upload(label="Or upload a photo of the label", auto_upload=True,

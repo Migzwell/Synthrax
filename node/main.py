@@ -57,8 +57,9 @@ async def lifespan(_app):
 app = FastAPI(title=f"Synthrax {NODE_ID}", lifespan=lifespan)
 app.include_router(make_router(NODE_ID, store, sync.state, now=clock_client.now, actions=actions, seed=seed))
 build(site)                                         # the screen at http://localhost:<port>/
-ui.run_with(app, title=site.name, favicon="💊", show_welcome_message=False)
-
+ICON = ROOT / "assets" / "synthrax_icon.png"
+ui.run_with(app, title=f"Synthrax · {site.name}", favicon=ICON if ICON.exists() else None,
+            show_welcome_message=False)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=args.port or port_of(NODE_ID))

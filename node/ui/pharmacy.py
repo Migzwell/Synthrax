@@ -52,6 +52,8 @@ def queue(site: Site) -> None:
                     with ui.row().classes("items-center gap-4"):
                         ui.image(qr(code)).classes("w-28")
                         ui.label(code).classes("font-mono text-sm")
+                    ui.button("Show large", on_click=lambda c=code, n=f"{name}: {rx.drug} {rx.dose} (v{rx.version})":
+                              show_large(c, n)).props("dense flat size=sm")
                     qty = PACK_DAYS * max(1, len(rx.times))
                     btn = ui.button(f"Dispense new pack ({qty} doses)", on_click=lambda rx=rx, q=qty: site.actions.dispense(
                         rx.resident_id, rx.id, rx.version, q, drug=rx.drug, dose=rx.dose)).props("dense")
@@ -75,6 +77,16 @@ def queue(site: Site) -> None:
         ui.timer(1.0, body.refresh)
 
 
+def show_large(code: str, title: str) -> None:
+    """A big, crisp QR code: much easier to photograph or scan than a small one in a grid."""
+    with ui.dialog() as dialog, ui.card().classes("items-center"):
+        ui.label(title).classes("text-lg font-bold")
+        ui.image(qr(code, scale=10)).classes("w-80 h-80")
+        ui.label(code).classes("font-mono text-sm")
+        ui.button("Close", on_click=dialog.close).props("flat")
+    dialog.open()
+
+
 def labels(site: Site) -> None:
     with card("Current pack labels"):
         ui.label("Each label carries resident, medicine, dose and prescription version.").classes(
@@ -83,15 +95,19 @@ def labels(site: Site) -> None:
         @ui.refreshable
         def body():
             state = site.state()
-            with ui.row().classes("gap-4 flex-wrap"):
+            with ui.grid(columns=3).classes("w-full gap-3"):
                 for rx in state.rx.values():
                     if rx.stopped or rx.dispensed_version < rx.version:
                         continue                       # new version still in the dispensing queue
                     code = pack_code(rx.resident_id, rx.id, rx.drug, rx.dose, rx.version)
-                    with ui.column().classes("items-center gap-0"):
-                        ui.image(qr(code, scale=3)).classes("w-24")
-                        ui.label(f"{state.residents[rx.resident_id].name.split()[0]}: {rx.drug}").classes("text-xs")
-                        ui.label(code).classes("text-xs font-mono")
+                    with ui.column().classes("items-center gap-1 p-2 rounded border border-gray-200 bg-white"):
+                        ui.image(qr(code, scale=3)).classes("w-20 h-20")
+                        ui.label(f"{state.residents[rx.resident_id].name.split()[0]}: {rx.drug}").classes(
+                            "text-xs font-bold text-center")
+                        ui.label(code.replace("|", "|\u200b")).classes(      # wrap only after a "|"
+                            "text-[10px] leading-tight font-mono text-gray-500 text-center break-words")
+                        ui.button("Show large", on_click=lambda c=code, n=f"{state.residents[rx.resident_id].name}: "
+                                  f"{rx.drug} {rx.dose}": show_large(c, n)).props("dense flat size=sm")
         body()
         ui.timer(2.0, body.refresh)
 
