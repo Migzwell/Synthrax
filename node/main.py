@@ -59,31 +59,6 @@ app.include_router(make_router(NODE_ID, store, sync.state, now=clock_client.now,
 build(site)                                         # the screen at http://localhost:<port>/
 ui.run_with(app, title=site.name, favicon="💊", show_welcome_message=False)
 
-# ---------- screens ----------
-from nicegui import ui                                    # noqa: E402
-
-from node.seed_loader import residents as seed_residents  # noqa: E402
-from node.ui import carehome, common, gp, pharmacy        # noqa: E402
-
-site = common.Site(node_id=NODE_ID, store=store, sync=sync, actions=actions, seed=seed,
-                   residents=seed_residents(seed))
-SCREENS = {"carehome": carehome, "gp": gp, "pharmacy": pharmacy}
-
-
-@ui.page("/")
-def index():
-    common.page_style(site)
-    common.header(site)
-    screen = SCREENS[NODE_ID]
-    if hasattr(screen, "build"):
-        screen.build(site)
-    else:
-        ui.label("This screen has not been built yet.").classes("text-gray-500")
-    common.event_log(site)
-
-
-ui.run_with(app, title=f"Synthrax {site.name}")
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=args.port or port_of(NODE_ID))
