@@ -35,8 +35,8 @@ def draft_repeat(rx: Rx) -> dict:
 def check(state: NodeState, now: int, sync: SyncState) -> list[Flag]:
     flags = []
     for rx in active_rxs(state):
-        if rx.prn:
-            continue
+        if rx.prn or rx.dispensed_version == 0:
+            continue                        # when-required, or new and not yet dispensed
         if days_left(rx) >= MIN_DAYS or has_open_request(state, rx):
             continue
         flags.append(Flag(
