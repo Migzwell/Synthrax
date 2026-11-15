@@ -28,9 +28,6 @@ def rows(db_path, sql="SELECT * FROM events ORDER BY seq"):
     finally:
         con.close()
 
-
-# ---------- the seed file ----------
-
 def test_seed_has_expected_people_and_medicines():
     assert [r["name"] for r in SEED["residents"]] == ["Margaret Hughes", "Arthur Bell", "Doris Patel"]
     assert len(SEED["medications"]) == 7
@@ -67,9 +64,6 @@ def test_every_starting_event_is_valid():
             assert ev["medication_id"] in meds, ev
             assert meds[ev["medication_id"]]["resident_id"] == ev["resident_id"], ev
 
-
-# ---------- looking up drugs ----------
-
 def test_find_medication_ignores_case():
     assert find_medication(SEED, "WARFARIN")["id"] == "M1"
     assert find_medication(SEED, " Warfarin ")["id"] == "M1"
@@ -98,9 +92,6 @@ def test_risk_lookups():
     assert not is_high_risk(SEED, "Amlodipine")
     assert not is_high_risk(SEED, "not-a-drug")
     assert canonical_drug(SEED, "Sinemet") == "co-careldopa"
-
-
-# ---------- building events (no database) ----------
 
 def test_build_events_counts_and_types():
     events = build_events(SEED)
@@ -148,9 +139,6 @@ def test_arthurs_late_dose_keeps_its_times():
     assert late[0]["rx_id"] == "M4"
     assert late[0]["payload"]["scheduled_time"] == "16:00"
 
-
-# ---------- loading into SQLite ----------
-
 def test_load_seed_creates_database(tmp_path):
     db = tmp_path / "data" / "carehome.db"
     summary = load_seed(db)
@@ -193,9 +181,6 @@ def test_load_seed_respects_now_minutes(tmp_path):
     load_seed(db, now_minutes=1080)
     inr = rows(db, "SELECT created_at FROM events WHERE type = 'OBSERVATION'")
     assert inr == [(1080 - 32 * 60,)]
-
-
-# ---------- demo reset ----------
 
 def test_reset_demo_builds_one_database_per_node(tmp_path):
     result = reset_demo(data_dir=tmp_path)

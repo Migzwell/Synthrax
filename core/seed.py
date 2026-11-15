@@ -1,34 +1,3 @@
-"""Seed data: load Ethan's seed file into a node's SQLite file.
-
-Self-contained: standard library only, imports nothing else from Synthrax.
-
-    load_seed(db_path)             -> summary dict; writes the starting events
-    load_seed_file()               -> the parsed seed file (reference data)
-    find_seed_path()               -> where the seed file is
-    build_events(seed)             -> the starting events as plain dicts (no database)
-    find_medication(seed, name)    -> medication dict or None (ignores case, checks aliases)
-    is_high_risk / is_time_critical(seed, name)
-    check_flags_in_step(seed)      -> list of problems ([] means all good)
-
-Finding the seed file
-    The file may be called seed_data.json or seed.json. It is looked for in
-    data/, then the project root, then core/, then anywhere else in the
-    project. You do not need to set a path.
-
-What gets loaded
-    Only "starting_events" (the history before the demo) and the residents.
-    "demo_script_events" are NOT loaded: they happen live during the demo.
-
-Time
-    The seed gives times as hours relative to demo_now (negative = past).
-    created_at = now_minutes + t_hours * 60, in whole minutes.
-    The default now_minutes=0 makes created_at "minutes relative to demo_now"
-    (Margaret's INR is -1920). If the demo clock uses another origin, pass it.
-
-Loading is safe to repeat: event ids are fixed ("seed-001" ...) and writes use
-INSERT OR IGNORE, so loading twice never duplicates anything. Every node gets
-the same starting events with the same ids, so they merge cleanly when syncing.
-"""
 from __future__ import annotations
 
 import json
@@ -41,8 +10,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SEED_NAMES = ("seed_data.json", "seed.json")
 _SKIP_DIRS = {".venv", "venv", ".git", "__pycache__", ".pytest_cache", "node_modules"}
 
-# One place that defines the tables. If node/store.py defines the same table,
-# make sure the column names match.
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS events (
     id            TEXT PRIMARY KEY,
@@ -66,9 +33,6 @@ CREATE TABLE IF NOT EXISTS residents (
 
 # Keys that become columns on the event row. Everything else goes in payload.
 _ROW_KEYS = {"t_hours", "type", "author", "resident_id", "medication_id"}
-
-
-# ---------- finding and reading the seed file ----------
 
 def find_seed_path(root: Union[str, Path, None] = None) -> Path:
     """Find the seed file (seed_data.json or seed.json) inside the project."""
@@ -95,9 +59,6 @@ def load_seed_file(path: Union[str, Path, None] = None) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
-
-# ---------- seed -> events (pure, no database) ----------
-
 def build_events(seed: dict, now_minutes: int = 0) -> list[dict]:
     """Turn seed["starting_events"] into event dicts, oldest first."""
     raw_events = seed["starting_events"]
@@ -119,9 +80,6 @@ def build_events(seed: dict, now_minutes: int = 0) -> list[dict]:
             "seen_version": seen_version,
         })
     return events
-
-
-# ---------- seed -> database ----------
 
 def load_seed(db_path: Union[str, Path],
               seed_path: Union[str, Path, None] = None,
