@@ -16,6 +16,7 @@ ALLOWED = {
     "log_inr_taken": {"carehome"},
     "record_stock_count": {"carehome"},
     "scan_pack": {"carehome"},
+    "prescribe": {"gp"},
     "change_dose": {"gp"},
     "confirm_no_change": {"gp"},
     "stop_medicine": {"gp"},
@@ -28,7 +29,7 @@ SITE_NAMES = {"carehome": "the care home", "gp": "the GP", "pharmacy": "the phar
 
 # Vocabulary from seed_data.json
 WITHHELD_REASONS = {"refused", "asleep", "safety hold", "in hospital"}
-OBSERVATION_KINDS = {"INR_TAKEN", "HOSPITAL_DISCHARGE", "GP_VISIT", "FALL", "STOCK_COUNT", "REFUSING"}
+OBSERVATION_KINDS = {"INR_TAKEN", "HOSPITAL_DISCHARGE", "GP_VISIT", "FALL", "STOCK_COUNT", "REFUSING", "NOTE"}
 PACK_CODE = re.compile(r"(?P<resident>[^|]+)\|(?P<medication>[^|]+)\|(?P<drug>[^|]+)\|(?P<dose>[^|]+)\|v(?P<version>\d+)")
 
 
@@ -113,6 +114,19 @@ class Actions:
                            "pack_resident": m["resident"], "pack_medication": m["medication"]})
 
     # ---------- GP ----------
+
+    def prescribe(self, resident_id: str, drug: str, dose: str, times: Optional[list] = None,
+                  frequency: str = "") -> Event:
+        """A new medicine. Gets the next free id (M8, M9...). The pharmacy's R6 checks it before dispensing."""
+        if not drug.strip() or not dose.strip():
+            raise ValueError("A drug and a dose are needed.")
+        used = {e.rx_id for e in self.store.all() if e.type == "RX_CREATED" and e.rx_id}
+        n = len(used) + 1
+        while f"M{n}" in used:
+            n += 1
+        return self._emit("prescribe", "RX_CREATED", resident_id, f"M{n}",
+                          {"drug": drug.strip(), "dose": dose.strip(), "times": list(times or []),
+                           "frequency": frequency.strip() or None, "needs_ack": True})
 
     def change_dose(self, resident_id: str, rx_id: str, dose: str, seen_version: int,
                     old_dose: str = "", reason: str = "") -> Event:

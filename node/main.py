@@ -59,5 +59,6 @@ app.include_router(make_router(NODE_ID, store, sync.state, now=clock_client.now,
 build(site)                                         # the screen at http://localhost:<port>/
 ui.run_with(app, title=site.name, favicon="💊", show_welcome_message=False)
 
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=args.port or port_of(NODE_ID))
