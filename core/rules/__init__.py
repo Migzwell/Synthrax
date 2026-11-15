@@ -6,14 +6,13 @@ Call evaluate() after every new event and every clock tick.
 """
 from typing import Optional
 
-from core.rules import r1, r2, r3, r4, r5
+from core.rules import r1, r2, r3, r4, r5, r6, r7
 from core.types import SEVERITY, Flag, NodeState, SyncState
 
-# R6 (pharmacy), R7 (GP) and R8 (care home) plug in here when written.
 RULES_BY_NODE = {
     'carehome': [r1.check, r2.check, r3.check, r4.check, r5.check],
-    'gp': [],
-    'pharmacy': [],
+    'gp': [r7.check],
+    'pharmacy': [r6.check],
 }
 
 
