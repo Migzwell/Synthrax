@@ -1,9 +1,9 @@
 """Reads and moves the demo clock."""
-# Every rule must use now(), never datetime.now(), so the whole demo follows one clock.
-# Times are demo-clock minutes: 0 = 14:00 on demo day, 240 = 18:00, -1440 = 14:00 yesterday.
 import os
 
 import httpx
+
+from node import config  # noqa: F401  (loads .env before the settings below are read)
 
 CLOCK_URL = os.getenv("CLOCK_URL", "http://localhost:8000")
 DAY_START = 14 * 60                                    # minute 0 is 14:00
@@ -33,7 +33,7 @@ def next_round(now: int) -> int:
 
 
 def from_test_hours(t_hours: float) -> int:
-    """Ethan's test cases count hours from 18:00. -32 (INR yesterday 10:00) -> -1680."""
+    """The rule test cases count hours from 18:00. -32 (INR yesterday 10:00) -> -1680."""
     return round(t_hours * 60) + minute_of("18:00")
 
 def now() -> int:

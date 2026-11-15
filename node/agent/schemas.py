@@ -7,8 +7,6 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-# --- Carer note -> structured items -----------------------------------------
-
 NoteKind = Literal['refusal', 'stock_count', 'fall', 'symptom', 'other']
 
 
@@ -24,9 +22,6 @@ class NoteItem(BaseModel):
 class NoteParse(BaseModel):
     summary: str = Field(min_length=1, max_length=200)   # one line for the record
     items: list[NoteItem] = Field(max_length=10)
-
-
-# --- GP inbox summary -------------------------------------------------------
 
 Urgency = Literal['routine', 'soon', 'urgent']
 

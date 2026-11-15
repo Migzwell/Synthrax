@@ -3,9 +3,13 @@
 # still moves to 18:00 with everyone else.
 # Time is in demo-clock minutes: 0 = 14:00 on demo day (see core/types.py).
 # The Synthrax demo story starts at 12:00, when the care home's wifi drops.
-#
-# Run: python -m control.clock_server      (port 8000)
 import os
+
+try:                                # read CLOCK_PORT and DEMO_START_MINUTE from .env
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 import uvicorn
 from fastapi import FastAPI
