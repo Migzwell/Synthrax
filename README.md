@@ -135,11 +135,3 @@ All residents and data are fictional. A real deployment would need NHS clinical 
 (DCB0129/DCB0160) and data protection compliance, starting with a pilot of one care home, its GP
 and its pharmacy.
 
-## Team
-
-| Role | Owns |
-|---|---|
-| Pharmacy lead | Clinical rules, seed data, test cases, pitch |
-| Coder A | Event log, sync, network switch, clock, actions, conflict cards |
-| Coder B | Safety rules, AI agent |
-| Coder C | Screens, pack codes, rule test cases |
