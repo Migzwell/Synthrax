@@ -1,5 +1,6 @@
 """Header, toggle, clock, badges, message log."""
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from nicegui import ui
@@ -14,6 +15,10 @@ from node.clock_client import fmt
 from node.store import EventStore
 from node.sync import Sync
 
+ASSETS = Path(__file__).resolve().parents[2] / "assets"
+ICON = ASSETS / "synthrax_icon_animated.svg"            # the green pill: halves click together on load
+if not ICON.exists():
+    ICON = ASSETS / "synthrax_icon.png"
 COLOUR = {"carehome": "#1D6B63", "gp": "#33479A", "pharmacy": "#9A5B0C"}
 CHIP = {
     "BLOCK": ("Block", "bg-red-100 text-red-800"),
@@ -86,7 +91,12 @@ def card(title: str):
 def header(site: Site) -> None:
     colour = COLOUR[site.node_id]
     with ui.row().classes("w-full items-center justify-between border-b-4 pb-2").style(f"border-color:{colour}"):
-        ui.label(site.name).classes("text-3xl font-bold").style(f"color:{colour}")
+        with ui.row().classes("items-center gap-3"):
+            if ICON.exists():
+                ui.image(str(ICON)).classes("w-12 h-12")
+            with ui.column().classes("gap-0"):
+                ui.label(site.name).classes("text-3xl font-bold leading-tight").style(f"color:{colour}")
+                ui.label("Synthrax").classes("text-xs font-bold tracking-widest text-gray-500")
         with ui.row().classes("items-center gap-3"):
             @ui.refreshable
             def status():
