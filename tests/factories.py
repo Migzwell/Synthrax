@@ -41,8 +41,8 @@ def demo_state(extra_events=()):
     events = [
         # Arthur: GP visit yesterday, GP to advise
         ev('OBSERVATION', COCARELDOPA, at(15, day=-1), resident_id='arthur', kind='GP_VISIT'),
-        # Margaret: INR taken this morning
-        ev('OBSERVATION', WARFARIN, at(8), resident_id='margaret', kind='INR_TAKEN'),
+        # Margaret: INR taken yesterday at 10:00 (32h before the round, as in the demo story)
+        ev('OBSERVATION', WARFARIN, at(10, day=-1), resident_id='margaret', kind='INR_TAKEN'),
         # Arthur's earlier doses today were given on time
         ev('DOSE_GIVEN', COCARELDOPA, at(8), resident_id='arthur', slot=at(8), given_at=at(8)),
         ev('DOSE_GIVEN', COCARELDOPA, at(12), resident_id='arthur', slot=at(12), given_at=at(12)),

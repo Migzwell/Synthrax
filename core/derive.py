@@ -39,7 +39,10 @@ def derive(events: Iterable[Event],
             state.rx[e.rx_id] = Rx(
                 id=e.rx_id, resident_id=e.resident_id, drug=p.get("drug", e.rx_id),
                 dose=p.get("dose", ""), times=list(p.get("times", [])), frequency=p.get("frequency"),
-                version=1, risk_group=_risk_group(p))
+                version=1, risk_group=_risk_group(p), dispensed_version=0)
+            if p.get("needs_ack"):                  # a new prescription the care home must acknowledge
+                state.rx[e.rx_id].acked_version = 0
+                state.rx[e.rx_id].last_changed_at = e.created_at
 
         elif e.type == "RX_CHANGED" and rx:
             new_version = (e.seen_version if e.seen_version is not None else rx.version) + 1

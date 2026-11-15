@@ -8,7 +8,7 @@ HOLD_AND_CONFIRM = {
     'warfarin', 'apixaban', 'rivaroxaban', 'methotrexate',
     'morphine', 'oxycodone', 'fentanyl',
 }
-NEVER_OMIT = {'co-careldopa', 'insulin', 'levetiracetam'}
+NEVER_OMIT = {'co-careldopa', 'sinemet', 'insulin', 'levetiracetam'}  
 
 
 def risk_group_for(drug: str) -> RiskGroup:

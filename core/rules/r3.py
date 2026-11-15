@@ -16,11 +16,12 @@ or dose to use.
 from core.rules.common import active_rxs, observations
 from core.types import Flag, NodeState, SyncState
 
-MSG_WRONG_RESIDENT = ("{drug}: don't use this pack. It was dispensed for another resident. "
+MSG_WRONG_RESIDENT = ("Wrong pack: {drug}: don't use this pack. It was dispensed for another resident. "
                       "Find this resident's own pack.")
-MSG_NEWER = ("HOLD {drug}. Pack is v{pack}, your record is v{rec}: a change exists you "
-             "haven't received. Confirm the dose with the prescriber before giving.")
-MSG_OLDER = ("{drug}: don't use this pack. Pack is v{pack}, your record is v{rec}. "
+MSG_WRONG_MEDICINE = ("Wrong pack: {drug}: don't use this pack. It is for a different medicine.")
+MSG_NEWER = ("HOLD {drug}. A newer prescription exists: pack is v{pack}, your record is v{rec}, so a "
+             "change exists you haven't received. Confirm the dose with the prescriber before giving.")
+MSG_OLDER = ("{drug}: don't use this pack. It's an old pack (v{pack}); your record is v{rec}. "
              "Ask the pharmacy for the current pack.")
 MSG_NEVER_OMIT_NEWER = ("GIVE {drug} ON TIME at the last confirmed dose. Pack is v{pack}, your "
                         "record is v{rec}: a change exists you haven't received. "
@@ -35,15 +36,23 @@ def check(state: NodeState, now: int, sync: SyncState) -> list[Flag]:
         scans = observations(state, rx.id, 'PACK_SCANNED')
         if not scans:
             continue
-        scan = scans[-1].payload
+        scan_event = scans[-1]
+        scan = scan_event.payload
         never_omit = rx.risk_group == 'never_omit'
         pack_resident = scan.get('pack_resident')
+        pack_medicine = scan.get('pack_medication')
         pack = scan.get('version')
         text = dict(drug=rx.drug, pack=pack, rec=rx.version)
+        # The scan is recorded against the resident being given the dose, when that's a known resident.
+        giving_to = scan_event.resident_id if scan_event.resident_id in state.residents else rx.resident_id
 
-        if pack_resident and pack_resident != rx.resident_id:
-            msg = (MSG_NEVER_OMIT_BAD_PACK.format(why='dispensed for another resident', **text)
+        if pack_resident and pack_resident not in (rx.resident_id, giving_to) or \
+                (pack_resident and giving_to != pack_resident):
+            msg = (MSG_NEVER_OMIT_BAD_PACK.format(why='wrong pack: dispensed for another resident', **text)
                    if never_omit else MSG_WRONG_RESIDENT.format(**text))
+        elif pack_medicine and pack_medicine != rx.id:
+            msg = (MSG_NEVER_OMIT_BAD_PACK.format(why='wrong pack: a different medicine', **text)
+                   if never_omit else MSG_WRONG_MEDICINE.format(**text))
         elif pack is None or int(pack) == rx.version:
             continue
         elif int(pack) > rx.version:

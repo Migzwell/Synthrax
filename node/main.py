@@ -11,14 +11,16 @@ if str(ROOT) not in sys.path:                       # lets PyCharm's Run button 
 
 import uvicorn                                      # noqa: E402
 from fastapi import FastAPI                         # noqa: E402
+from nicegui import ui                              # noqa: E402
 
 from node import clock_client                       # noqa: E402
 from node.actions import Actions                    # noqa: E402
 from node.api import make_router                    # noqa: E402
 from node.config import SYNC_INTERVAL_SECONDS, peers_of, port_of   # noqa: E402
-from node.seed_loader import load_seed, read_seed   # noqa: E402
+from node.seed_loader import load_seed, read_seed, residents   # noqa: E402
 from node.store import EventStore                   # noqa: E402
 from node.sync import Sync                          # noqa: E402
+from node.ui import Site, build                     # noqa: E402
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--node", default="carehome", choices=["carehome", "gp", "pharmacy"],
@@ -35,6 +37,7 @@ actions = Actions(NODE_ID, store, now=clock_client.now)   # the screens call the
 SEED_PATH = DATA / "seed_data.json"
 seed = read_seed(SEED_PATH)
 print(f"{NODE_ID}: loaded {load_seed(SEED_PATH, store)} new seed events")   # 0 after a restart
+site = Site(NODE_ID, store, sync, actions, seed, residents(seed))
 
 
 async def clock_loop():
@@ -53,6 +56,8 @@ async def lifespan(_app):
 
 app = FastAPI(title=f"Synthrax {NODE_ID}", lifespan=lifespan)
 app.include_router(make_router(NODE_ID, store, sync.state, now=clock_client.now, actions=actions, seed=seed))
+build(site)                                         # the screen at http://localhost:<port>/
+ui.run_with(app, title=site.name, favicon="💊", show_welcome_message=False)
 
 # ---------- screens ----------
 from nicegui import ui                                    # noqa: E402
