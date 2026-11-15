@@ -66,40 +66,6 @@ Run the tests: `pytest`
 Every safety rule is checked against the pharmacy lead's 37 written test cases (each must fire
 when it should and stay silent when it shouldn't): `pytest tests/test_rule_cases.py -v`
 
-## Running the demo
-
-### First-time setup
-
-```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env             # then add LLM_API_KEY if you want live AI
-```
-
-### Start everything
-
-```bash
-bash run_all.sh --fresh
-```
-
-This starts the demo clock and all three sites, then opens them in your browser:
-
-| Site | Address |
-|---|---|
-| Care home | http://localhost:8001 |
-| GP | http://localhost:8002 |
-| Pharmacy | http://localhost:8003 |
-
-`--fresh` deletes the old databases so the demo starts from the seed data.
-Leave it off to keep what you did last time. Press Ctrl+C to stop everything.
-
-### Run the tests
-
-```bash
-python -m pytest -q
-```
-
 ## Troubleshooting
 
 **`zsh: permission denied: ./run_all.sh`**
