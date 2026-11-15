@@ -1,11 +1,7 @@
-__pycache__/
-*.py[cod]
-.venv/
-venv/
 .env
-.pytest_cache/
-.DS_Store
+.venv/
 data/*.db
-data/*.db-*
+__pycache__/
+.pytest_cache/
 .idea/
-.idea/
+.DS_Store

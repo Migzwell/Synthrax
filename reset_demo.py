@@ -12,18 +12,20 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Union
 
-from core.seed import load_seed, load_seed_file
+from node.seed_loader import load_seed, read_seed
+from node.store import EventStore
 
-DATA_DIR = Path(__file__).resolve().parent / "data"
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data"
+SEED_PATH = DATA_DIR / "seed_data.json"
 
 
 def reset_demo(data_dir: Union[str, Path] = DATA_DIR,
-               seed_path: Union[str, Path, None] = None,
-               now_minutes: int = 0) -> dict:
+               seed_path: Union[str, Path] = SEED_PATH) -> dict:
     """Wipe the node databases and reload the seed. Returns {node_id: summary}."""
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
-    seed = load_seed_file(seed_path)
+    seed = read_seed(Path(seed_path))
 
     for old in list(data_dir.glob("*.db")) + list(data_dir.glob("*.db-*")):
         try:
@@ -31,13 +33,14 @@ def reset_demo(data_dir: Union[str, Path] = DATA_DIR,
         except PermissionError as exc:
             raise SystemExit(f"Cannot delete {old.name}: it is in use. Stop the node programs and try again.") from exc
 
-    return {
-        node["id"]: load_seed(data_dir / f"{node['id']}.db", seed_path, now_minutes)
-        for node in seed["nodes"]
-    }
+    summary = {}
+    for node in seed["nodes"]:
+        db = data_dir / f"{node['id']}.db"
+        inserted = load_seed(Path(seed_path), EventStore(db))
+        summary[node["id"]] = {"events_inserted": inserted, "residents": len(seed["residents"]), "db": str(db)}
+    return summary
 
 
 if __name__ == "__main__":
     for node_id, summary in reset_demo().items():
         print(f"{node_id:9} {summary['events_inserted']} events, {summary['residents']} residents -> {summary['db']}")
-        

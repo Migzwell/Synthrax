@@ -19,7 +19,7 @@ def test_demo_clock_conversion():
 def test_r1_holds_margarets_warfarin_when_offline():
     (flag,) = by_rx(r1.check(demo_state(), SIX_PM, offline()), WARFARIN)
     assert flag.action == 'HOLD'
-    assert 'INR taken at 08:00' in flag.message
+    assert 'INR taken 32h ago (10:00)' in flag.message
     assert 'before giving' in flag.message
 
 
@@ -40,7 +40,7 @@ def test_r1_silent_when_online_and_synced_since_the_observation():
 
 
 def test_r1_fires_when_online_but_no_sync_since_the_observation():
-    sync = SyncState(online=True, last_seen={'gp': at(7)})   # before the 8am INR
+    sync = SyncState(online=True, last_seen={'gp': at(9, day=-1)})   # before yesterday's 10am INR
     assert by_rx(r1.check(demo_state(), SIX_PM, sync), WARFARIN)
 
 
@@ -62,6 +62,12 @@ def test_r1_cleared_by_rx_confirmed():
 def test_r1_cleared_by_rx_changed():
     changed = ev('RX_CHANGED', WARFARIN, at(15), author='gp', seen_version=1, dose='3mg')
     assert by_rx(r1.check(demo_state([changed]), SIX_PM, offline()), WARFARIN) == []
+
+
+def test_r1_waits_until_the_inr_is_over_24h_old():
+    """An INR taken this morning isn't overdue yet at the 6pm round."""
+    state = demo_state([ev('OBSERVATION', WARFARIN, at(8), resident_id='margaret', kind='INR_TAKEN')])
+    assert by_rx(r1.check(state, SIX_PM, offline()), WARFARIN) == []
 
 
 def test_r1_only_fires_when_a_dose_is_due():
