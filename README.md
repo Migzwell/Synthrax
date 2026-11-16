@@ -84,32 +84,7 @@ when it should and stay silent when it shouldn't): `pytest tests/test_rule_cases
 pack scanner to see R3 spot the newer prescription, or prescribe ibuprofen for Margaret at the GP
 and watch the pharmacy's safety check (R6) block it because she takes warfarin.
 
-## How it's built
 
-All Python. Each site is one process: a FastAPI app with NiceGUI screens.
-
-```
-core/          pure logic: no network, no UI, no real clock
-  types.py       shared data model (events, prescriptions, flags)
-  derive.py      event log -> current doses, versions, stock, requests
-  rules/         safety rules R1-R7 (offline, deterministic)
-  interactions.py  R6's table of dangerous combinations
-  conflicts.py   conflict cards after a reconnect
-  schedule.py    dose times <-> demo-clock minutes
-node/          one running site
-  main.py        starts a site: screens, API, sync and clock loops
-  store.py       append-only SQLite event log (never edited, never duplicated)
-  sync.py        pulls missing events from the other sites every 2s
-  api.py         endpoints for the other sites and for testing
-  actions.py     everything a person can do, with role checks
-  seed_loader.py loads data/seed_data.json at start-up
-  agent/         AI: carer notes, GP summaries (with rule-based fallbacks)
-  ui/            the three screens
-control/       the shared demo clock (never switched off)
-data/          seed_data.json and rule_test_cases.json (the site databases are created here)
-assets/        logo and icons
-tests/         pytest suite, including the 37 rule test cases
-```
 
 ## Safety rules
 
