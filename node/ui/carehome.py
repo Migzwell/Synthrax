@@ -1,12 +1,13 @@
 """Med round, letter, note, verbal, pack scan."""
-from nicegui import ui
+from nicegui import run, ui
 
 from core.rules import blocking_flag
 from core.rules.r5 import draft_repeat
 from core.schedule import due_slot
 from node.agent import llm
+from node.agent.redact import all_names, redact
 from node.agent.parse_note import parse_note, to_draft_events
-from node.clock_client import fmt
+from node.clock_client import fmt, minute_of
 from node.qr_read import read_pack_codes
 from .common import Site, card, chip, worst
 
@@ -46,7 +47,21 @@ def med_round(site: Site) -> None:
                                 when = "when required" if rx.prn else ", ".join(rx.times)
                                 ui.label(f"{rx.dose}, {when} · v{rx.version} · stock {rx.stock}").classes(
                                     "text-sm text-gray-600")
-                            chip(worst(mine))
+                            record = _last_record_today(rx, state.events, now)
+                            safety_held = (record is not None and record.type == "DOSE_WITHHELD"
+                                           and record.payload.get("reason") == "safety hold")
+                            chip("HOLD" if safety_held and worst(mine) in ("OK", "INFO", "WARN") else worst(mine))
+                        if record is not None:
+                            when = fmt(record.payload.get("slot") or record.created_at).replace(" today", "")
+                            if safety_held:
+                                ui.label(f"Held at {when} for safety. Waiting for the prescriber to confirm the dose."
+                                         ).classes("text-sm font-bold text-red-700")
+                            elif record.type == "DOSE_WITHHELD":
+                                ui.label(f"Not given at {when} ({record.payload.get('reason')}).").classes(
+                                    "text-sm text-gray-600")
+                            else:
+                                given = fmt(record.payload.get("given_at", record.created_at)).replace(" today", "")
+                                ui.label(f"Given at {given}.").classes("text-sm text-emerald-700")
                         for f in mine:
                             ui.label(f"{f.rule}: {f.message}").classes("text-sm")
                         with ui.row().classes("gap-2 items-center"):
@@ -68,6 +83,14 @@ def med_round(site: Site) -> None:
                                     rx.resident_id, rx.id, **draft_repeat(rx))).props("dense outline")
         body()
         ui.timer(1.0, body.refresh)
+
+
+def _last_record_today(rx, events, now):
+    """The latest dose given or not given today for this medicine, if any."""
+    start = ((now + 14 * 60) // 1440) * 1440 - 14 * 60          # 00:00 today in demo minutes
+    found = [e for e in events if e.rx_id == rx.id and e.type in ("DOSE_GIVEN", "DOSE_WITHHELD")
+             and (e.payload.get("slot") if e.payload.get("slot") is not None else e.created_at) >= start]
+    return max(found, key=lambda e: (e.created_at, e.lamport)) if found else None
 
 
 def change_inbox(site: Site) -> None:
@@ -100,49 +123,132 @@ def _resident_in(text: str, site: Site):
     return None
 
 
+SOURCE_LABEL = {"live": "Claude (live)", "cached": "Claude (cached example answer)"}
+
+
 def note_box(site: Site) -> None:
-    notes = site.seed.get("messy_carer_notes_for_ai", [])
+    notes = [n["note"] for n in site.seed.get("messy_carer_notes_for_ai", []) if "_comment" not in n]
     with card("Messy note (AI)"):
-        ui.label("Type it how you'd text a colleague. The AI drafts the records; you confirm.").classes(
-            "text-sm text-gray-600")
-        text = ui.textarea(value=notes[0]["note"] if notes else "").classes("w-full").props("outlined autogrow")
+        ui.label("Type it how you'd text a colleague. Claude drafts the records; you check and confirm. "
+                 "Names are removed before anything leaves this computer.").classes("text-sm text-gray-600")
+        if notes:
+            examples = ui.row().classes("gap-1")
+            with examples:
+                ui.label("Examples:").classes("text-xs text-gray-500")
+                for i, n in enumerate(notes):
+                    ui.button(f"{i + 1}", on_click=lambda n=n: setattr(text, "value", n)).props("dense flat size=sm")
+        text = ui.textarea(value=notes[0] if notes else "").classes("w-full").props("outlined autogrow")
         result = ui.column().classes("w-full")
 
-        def read():
+        async def read():
             result.clear()
             with result:
                 res_id = _resident_in(text.value, site)
                 if res_id is None:
                     ui.label("Add the resident's name so the note can be filed.").classes("text-red-700")
                     return
-                if not site.online() and llm.available():
-                    ui.label("No connection: the AI can't read this now. Record the stock count by hand.").classes(
+                if not site.online() and llm.status() == "live":
+                    ui.label("No connection, so Claude can't read this now. Use the form below.").classes(
                         "text-red-700")
+                    manual_form(site, res_id)
                     return
                 state = site.state()
                 rxs = [rx for rx in state.rx.values() if rx.resident_id == res_id]
-                parsed = parse_note(text.value, rxs)
+                safe_text = redact(text.value, all_names(site.seed.get("residents", [])))
+                spinner = ui.spinner(size="lg")
+                parsed = await run.io_bound(parse_note, safe_text, rxs)
+                spinner.delete()
                 if parsed is None:
-                    ui.label("The AI couldn't read this note. Please record it by hand.").classes("text-red-700")
+                    ui.label("Claude couldn't read this note, so nothing was guessed. Use the form below.").classes(
+                        "text-red-700")
+                    manual_form(site, res_id)
                     return
-                ui.label(f"AI draft: {parsed.summary}").classes("font-bold")
+                name = state.residents[res_id].name
+                with ui.row().classes("items-center gap-2"):
+                    ui.label(f"Draft for {name}").classes("font-bold")
+                    ui.label(SOURCE_LABEL.get(llm.last_source, "Claude")).classes(
+                        "px-2 py-0.5 rounded text-xs font-bold bg-violet-100 text-violet-800")
+                ui.label(parsed.summary).classes("text-sm")
+                ui.label(f"Sent to Claude: “{safe_text.strip()}”").classes("text-xs text-gray-500")
                 for item in parsed.items:
-                    ui.label(f"• {item.kind.replace('_', ' ')}: {item.detail}   “{item.source_text}”").classes("text-sm")
+                    times = ""
+                    if item.kind == "dose_given" and (item.scheduled_time or item.given_at):
+                        times = f" (due {item.scheduled_time or '?'}, given {item.given_at or 'now'})"
+                    ui.label(f"• {item.kind.replace('_', ' ')}: {item.detail}{times}   “{item.source_text}”").classes(
+                        "text-sm")
 
                 def confirm():
-                    for item in parsed.items:
-                        if item.kind == "refusal" and item.rx_id:
-                            site.actions.withhold_dose(res_id, item.rx_id, "refused")
-                    for draft in to_draft_events(parsed, res_id, text.value):
-                        kind = draft["payload"]["kind"]
-                        if kind == "STOCK_COUNT":
-                            site.actions.record_stock_count(res_id, draft["rx_id"], draft["payload"]["stock_doses"])
-                        elif kind == "NOTE":
-                            site.actions.log_observation(res_id, "NOTE", draft["payload"]["summary"])
+                    saved = save_items(site, res_id, parsed)
                     save.disable()
                     save.text = "Saved"
+                    ui.notify(f"Saved {saved} record(s). The safety rules re-check straight away.")
                 save = ui.button("Confirm and save", on_click=confirm)
+                ui.label("Nothing is recorded until you confirm.").classes("text-xs text-gray-500")
         ui.button("Read note", on_click=read)
+        with ui.expansion("Record by hand instead").classes("w-full text-sm"):
+            state = site.state()
+            pick = ui.select({r.id: r.name for r in state.residents.values()},
+                             value=next(iter(state.residents), None), label="Resident").classes("w-full")
+            holder = ui.column().classes("w-full")
+
+            def show():
+                holder.clear()
+                with holder:
+                    manual_form(site, pick.value)
+            pick.on_value_change(lambda _: show())
+            show()
+
+
+def save_items(site: Site, res_id: str, parsed) -> int:
+    """Turn a confirmed AI draft into records. Returns how many were saved."""
+    saved = 0
+    for item in parsed.items:
+        try:
+            if item.kind == "refusal" and item.rx_id:
+                site.actions.withhold_dose(res_id, item.rx_id, "refused")
+            elif item.kind == "dose_given" and item.rx_id:
+                rx = site.state().rx[item.rx_id]
+                slot = minute_of(item.scheduled_time) if item.scheduled_time else None
+                given = minute_of(item.given_at) if item.given_at else None
+                site.actions.give_dose(res_id, item.rx_id, slot=slot, dose=rx.dose, version=rx.version,
+                                       given_at=given)
+            elif item.kind == "fall":
+                site.actions.log_observation(res_id, "FALL", item.detail)
+            else:
+                continue
+            saved += 1
+        except ValueError as e:
+            ui.notify(f"Not saved: {item.detail} ({e})", type="warning")
+    for draft in to_draft_events(parsed, res_id, ""):
+        if draft["payload"]["kind"] == "STOCK_COUNT":
+            site.actions.record_stock_count(res_id, draft["rx_id"], draft["payload"]["stock_doses"])
+            saved += 1
+    site.actions.log_observation(res_id, "NOTE", parsed.summary)
+    return saved + 1
+
+
+def manual_form(site: Site, res_id: str) -> None:
+    """The fallback when the AI is unavailable or unsure: the same records, entered by hand."""
+    state = site.state()
+    meds = {rx.id: rx.drug for rx in state.rx.values() if rx.resident_id == res_id}
+    with ui.column().classes("w-full gap-1 border border-dashed border-gray-300 rounded p-2"):
+        med = ui.select(meds, value=next(iter(meds), None), label="Medicine").classes("w-full")
+        what = ui.select({"refused": "Refused a dose", "stock": "Stock count", "fall": "Had a fall"},
+                         value="refused", label="What happened").classes("w-full")
+        count = ui.number("Doses left (for a stock count)", min=0, value=None).classes("w-full")
+
+        def save():
+            if what.value == "refused":
+                site.actions.withhold_dose(res_id, med.value, "refused")
+            elif what.value == "stock":
+                if count.value is None:
+                    ui.notify("Enter how many doses are left.", type="warning")
+                    return
+                site.actions.record_stock_count(res_id, med.value, int(count.value))
+            else:
+                site.actions.log_observation(res_id, "FALL", "Recorded by hand")
+            ui.notify("Saved.")
+        ui.button("Save", on_click=save).props("dense outline")
 
 
 def pack_scan(site: Site) -> None:

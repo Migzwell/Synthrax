@@ -1,0 +1,8 @@
+{
+  "summary": "12:00 co-careldopa (Sinemet) given late, at about 12:45, while he was in the lounge.",
+  "items": [
+    {"kind": "dose_given", "rx_id": "M4", "drug": "Co-careldopa", "detail": "12:00 co-careldopa given late, at about 12:45.",
+     "count": null, "scheduled_time": "12:00", "given_at": "12:45",
+     "source_text": "12 o clock sinemet given late about 1245"}
+  ]
+}

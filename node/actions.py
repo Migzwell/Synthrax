@@ -60,11 +60,15 @@ class Actions:
     # ---------- care home ----------
 
     def give_dose(self, resident_id: str, rx_id: str, slot: Optional[int] = None,
-                  dose: str = "", version: int = 1, staff_name: str = "") -> Event:
-        """Record a dose as given. `slot` is when it was due (None for when-required medicines)."""
+                  dose: str = "", version: int = 1, staff_name: str = "",
+                  given_at: Optional[int] = None) -> Event:
+        """Record a dose as given. `slot` is when it was due (None for when-required medicines);
+        `given_at` defaults to now, or is the time a carer reports it was given (e.g. from a note)."""
+        if given_at is not None and given_at > self.now():
+            raise ValueError("A dose can't be recorded as given in the future.")
         return self._emit("give_dose", "DOSE_GIVEN", resident_id, rx_id,
-                          {"slot": slot, "given_at": self.now(), "dose": dose, "version": version,
-                           "staff_name": staff_name})
+                          {"slot": slot, "given_at": self.now() if given_at is None else given_at,
+                           "dose": dose, "version": version, "staff_name": staff_name})
 
     def withhold_dose(self, resident_id: str, rx_id: str, reason: str, slot: Optional[int] = None,
                       staff_name: str = "") -> Event:

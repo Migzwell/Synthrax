@@ -10,6 +10,7 @@ from core.derive import derive
 from core.rules import evaluate
 from core.types import SEVERITY, Flag, NodeState, Resident
 from node import clock_client
+from node.agent import llm
 from node.actions import Actions
 from node.clock_client import fmt
 from node.store import EventStore
@@ -114,6 +115,10 @@ def header(site: Site) -> None:
                         "px-3 py-1 rounded bg-red-100 text-red-800 font-bold")
             status()
             ui.timer(1.0, status.refresh)
+            ai = llm.status()
+            ui.label({"live": "AI: Claude live", "cached": "AI: cached examples", "off": "AI: off (rules only)"}[ai]).classes(
+                "px-2 py-1 rounded text-xs font-bold " + ("bg-violet-100 text-violet-800" if ai != "off"
+                                                          else "bg-gray-200 text-gray-700"))
             ui.switch("Network", value=site.online(),
                       on_change=lambda e: setattr(site.sync.state, "online", e.value)).props("color=green")
             ui.button("+1 hour", on_click=lambda: clock_client.advance(60)).props("outline")

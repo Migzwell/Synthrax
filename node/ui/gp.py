@@ -1,5 +1,7 @@
-"""Alerts, dose changes, repeat requests, conflict cards, AI summary."""
-from nicegui import ui
+"""Alerts, dose changes, repeat requests, conflict cards, AI triage of residents."""
+from nicegui import run, ui
+
+from node.agent import llm
 
 from node.agent.summarise import summarise
 from node.clock_client import fmt
@@ -175,26 +177,58 @@ def prescribe_form(site: Site) -> None:
         ui.button("Prescribe", on_click=prescribe)
 
 
-def summary_box(site: Site) -> None:
-    with card("Resident summary (AI)"):
-        ui.label("Three lines on what has happened. A reading aid only: it changes nothing.").classes(
-            "text-sm text-gray-600")
-        state = site.state()
-        people = {r.id: r.name for r in state.residents.values()}
-        who = ui.select(people, value=next(iter(people), None), label="Resident").classes("w-full")
-        result = ui.column().classes("w-full")
+URGENCY_ORDER = {"urgent": 0, "soon": 1, "routine": 2}
+URGENCY_CHIP = {"urgent": "HOLD", "soon": "WARN", "routine": "OK"}
+_summary_cache: dict = {}      # (resident, last event id) -> (summary, source): the AI is asked once per change
 
-        def show():
-            result.clear()
+
+def _summary_for(resident_id: str, events, rxs):
+    key = (resident_id, events[-1].id if events else None)
+    if key not in _summary_cache:
+        summary = summarise(events, rxs)
+        if summary.source != "llm":
+            source = "Automatic summary (AI not used)"
+        else:
+            source = "AI summary (Claude, live)" if llm.last_source == "live" else "AI summary (cached example)"
+        _summary_cache[key] = (summary, source)
+    return _summary_cache[key]
+
+
+def summary_box(site: Site) -> None:
+    with card("Residents by urgency (AI)"):
+        ui.label("The AI reads each resident's recent events and writes three lines, most urgent first. "
+                 "A reading aid only: it changes nothing. A safety flag always makes it urgent.").classes(
+            "text-sm text-gray-600")
+        result = ui.column().classes("w-full")
+        seen = {"key": None}
+
+        async def show(force: bool = False):
             state = site.state()
-            events = [e for e in state.events if e.resident_id == who.value and not e.id.startswith("seed-")]
-            summary = summarise(events, state.rx)
+            by_resident = {}
+            for e in state.events:
+                if not e.id.startswith("seed-"):
+                    by_resident.setdefault(e.resident_id, []).append(e)
+            key = tuple((r, ev[-1].id) for r, ev in sorted(by_resident.items()))
+            if key == seen["key"] and not force:
+                return                                   # nothing new: don't ask the AI again
+            seen["key"] = key
+            found = []
+            for res_id, events in by_resident.items():
+                summary, source = await run.io_bound(_summary_for, res_id, events, state.rx)
+                found.append((res_id, summary, source))
+            found.sort(key=lambda r: URGENCY_ORDER[r[1].urgency])
+            result.clear()
             with result:
-                with ui.row().classes("items-center gap-2"):
-                    chip({"urgent": "HOLD", "soon": "WARN", "routine": "OK"}[summary.urgency])
-                    ui.label(summary.urgency.capitalize()).classes("font-bold")
-                for line in summary.lines:
-                    ui.label(f"• {line}").classes("text-sm")
-                source = "AI summary" if summary.source == "llm" else "Automatic summary (AI not used)"
-                ui.label(source).classes("text-xs text-gray-500")
-        ui.button("Summarise", on_click=show)
+                if not found:
+                    ui.label("Nothing new today.").classes("text-gray-500")
+                for res_id, summary, source in found:
+                    with ui.column().classes("w-full gap-1 border-t border-dashed border-gray-300 py-2"):
+                        with ui.row().classes("items-center gap-2"):
+                            chip(URGENCY_CHIP[summary.urgency])
+                            ui.label(f"{_name(state, res_id)}: {summary.urgency.capitalize()}").classes("font-bold")
+                        for line in summary.lines:
+                            ui.label(f"• {line}").classes("text-sm")
+                        ui.label(source).classes("text-xs text-gray-500")
+
+        ui.timer(3.0, show)
+        ui.button("Refresh", on_click=lambda: show(force=True)).props("dense outline")

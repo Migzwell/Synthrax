@@ -97,18 +97,34 @@ def _call_api(system: str, user: str) -> Optional[str]:
     return ''.join(b.get('text', '') for b in blocks if b.get('type') == 'text')
 
 
+last_source: Optional[str] = None   # 'live' (Claude answered), 'cached' (fixture) or None: shown in the UI
+
+
+def status() -> str:
+    """For the header: 'live' (Claude is called), 'cached' (demo answers only) or 'off' (no key)."""
+    if demo_mode():
+        return 'cached'
+    return 'live' if os.environ.get('LLM_API_KEY', '').strip() else 'off'
+
+
 def complete_json(system: str, user: str, fixture_text: str = '') -> Optional[dict]:
     """Ask the LLM for a JSON object.
 
     fixture_text is the raw input (the note or letter) used to look up a
     cached demo answer. Returns None on any failure.
     """
+    global last_source
     cached = fixture_for(fixture_text) if fixture_text else None
     if demo_mode():
+        last_source = 'cached' if cached is not None else None
         return cached
     try:
         reply = _call_api(system, user)
     except Exception:               # network, HTTP status, timeout, bad payload
         reply = None
     parsed = extract_json(reply) if reply else None
-    return parsed if parsed is not None else cached
+    if parsed is not None:
+        last_source = 'live'
+        return parsed
+    last_source = 'cached' if cached is not None else None
+    return cached

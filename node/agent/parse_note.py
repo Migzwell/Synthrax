@@ -21,14 +21,19 @@ from node.agent.schemas import NoteParse
 SYSTEM = """You turn a care home carer's free-text note into structured items.
 Reply with one JSON object and nothing else:
 {"summary": "<one short line summing up the note>",
- "items": [{"kind": "refusal" | "stock_count" | "fall" | "symptom" | "other",
+ "items": [{"kind": "refusal" | "stock_count" | "dose_given" | "fall" | "symptom" | "other",
             "rx_id": "<id from the medicines list, or null>",
             "drug": "<drug name, or null>",
             "detail": "<one short plain-English sentence>",
             "count": <number of doses left, only for stock_count, else null>,
+            "scheduled_time": "<HH:MM the dose was due, only for dose_given, else null>",
+            "given_at": "<HH:MM it was actually given, only for dose_given, else null>",
             "source_text": "<the exact words in the note this item came from>"}]}
 Rules:
 - One item per separate fact. A refusal and a stock level are two items.
+- A dose that was given (on time or late) is "dose_given". Write times as 24-hour HH:MM
+  ("12 o clock" is "12:00", "about 1245" is "12:45"). Leave a time null if the note doesn't say it.
+- The resident is referred to as "the resident"; never guess who they are.
 - Match everyday names to the medicines list (e.g. "water tablet" is a diuretic).
   If you are not sure which medicine is meant, use null for rx_id and drug.
 - Only use rx_id values that appear in the medicines list.

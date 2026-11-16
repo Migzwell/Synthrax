@@ -38,7 +38,7 @@ def _drug(e: Event, rxs: dict[str, Rx]) -> str:
 
 def _event_line(e: Event, rxs: dict[str, Rx]) -> dict:
     # Data minimisation: no resident name or id, only what the summary needs.
-    keep = ('kind', 'dose', 'reason', 'summary', 'stock_doses', 'version', 'qty',
+    keep = ('kind', 'dose', 'reason', 'summary', 'detail', 'stock_doses', 'version', 'qty', 'slot', 'given_at',
             'rule', 'action', 'message')
     return {'time': hhmm(e.created_at), 'type': e.type, 'drug': _drug(e, rxs),
             'by': e.author, **{k: e.payload[k] for k in keep if k in e.payload}}
@@ -58,9 +58,9 @@ def rule_based_summary(events: list[Event], rxs: dict[str, Rx]) -> Summary:
         line1 = f'{len(flags)} safety flag(s); latest: {_drug(last, rxs)} at {hhmm(last.created_at)}.'
     elif observations:
         last = observations[-1]
-        what = (last.payload.get('summary')
+        what = (last.payload.get('summary') or last.payload.get('detail')
                 or str(last.payload.get('kind', 'observation')).replace('_', ' ').lower())
-        line1 = f'Latest observation at {hhmm(last.created_at)}: {what}.'
+        line1 = f'Latest observation at {hhmm(last.created_at)}: {str(what).rstrip(".")}.'
     else:
         line1 = 'No safety flags or new observations.'
 

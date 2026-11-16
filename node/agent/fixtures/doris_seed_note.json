@@ -1,0 +1,11 @@
+{
+  "summary": "Refused furosemide again (says it makes her rush to the toilet); 3 tablets left.",
+  "items": [
+    {"kind": "refusal", "rx_id": "M6", "drug": "Furosemide", "detail": "Refused her furosemide again.",
+     "count": null, "source_text": "refused water tablet again"},
+    {"kind": "symptom", "rx_id": "M6", "drug": "Furosemide", "detail": "Says it makes her rush to the toilet.",
+     "count": null, "source_text": "says it makes her rush to the loo"},
+    {"kind": "stock_count", "rx_id": "M6", "drug": "Furosemide", "detail": "Only 3 furosemide tablets left in the pack.",
+     "count": 3, "source_text": "3 left in the pack"}
+  ]
+}

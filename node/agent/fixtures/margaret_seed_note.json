@@ -1,0 +1,9 @@
+{
+  "summary": "Fall in the bathroom, no injury; 2 paracetamol given for hip pain.",
+  "items": [
+    {"kind": "fall", "rx_id": null, "drug": null, "detail": "Fall in the bathroom, no injury.",
+     "count": null, "source_text": "had a fall in the bathroom no injury"},
+    {"kind": "dose_given", "rx_id": "M3", "drug": "Paracetamol", "detail": "2 paracetamol (1g) given for hip pain.",
+     "count": null, "scheduled_time": null, "given_at": null, "source_text": "gave 2 paracetamol for her hip"}
+  ]
+}
